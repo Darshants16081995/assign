@@ -1,0 +1,84 @@
+---
+- name: Deploy WordPress on AWS EC2
+  hosts: localhost
+  gather_facts: false
+  tasks:
+  - name: Provision EC2 Instance
+    ec2:
+      key_name: "{{ darshan }}"
+      instance_type: t2.micro
+      image: ami-0c55b159cbfafe1f0
+      region: us-east-1
+      wait: true
+      count: 1
+    register: ec2
+
+  - name: Add new instance to host group
+    add_host:
+      hostname: "{{ darshan }}"
+      groupname: launched
+    with_items: "{{ ec2.instances }}"
+
+  - name: Install necessary packages
+    become: yes
+    become_method: sudo
+    apt:
+      name:
+      - apache2
+      - mysql-server
+      - php
+      - libapache2-mod-php
+      - php-mysql
+      update_cache: yes
+
+  - name: Download and extract WordPress
+    become: yes
+    become_method: sudo
+    unarchive:
+      src: https://wordpress.org/latest.tar.gz
+      dest: /var/www/html/
+      remote_src: yes
+
+  - name: Configure Apache
+    become: yes
+    become_method: sudo
+    template:
+      src: templates/wordpress.conf.j2
+      dest: /etc/apache2/sites-available/wordpress.conf
+    notify:
+    - restart apache
+
+  - name: Enable mod_rewrite
+    become: yes
+    become_method: sudo
+    command: a2enmod rewrite
+
+  - name: Enable wordpress site
+    become: yes
+    become_method: sudo
+    command: a2ensite wordpress
+
+  - name: Create database
+    mysql_db:
+      name: wordpress
+      state: present
+
+  - name: Create database user
+    mysql_user:
+      name: wordpress
+      password: "{{ darshan }}"
+      priv: "wordpress.*:ALL"
+      host: localhost
+      state: present
+
+  - name: Restart Apache
+    become: yes
+    become_method: sudo
+    service:
+      name: apache2
+      state: restarted
+    handlers:
+    - name: restart apache
+      service:
+        name: apache2
+        state: restarted
