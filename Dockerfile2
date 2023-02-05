@@ -1,0 +1,14 @@
+FROM ubuntu:20.04
+RUN apt-get update && apt-get install -y \
+    ansible \
+    curl \
+    python3 \
+    python3-pip
+COPY playbook.yml /ansible/
+COPY add_post.sh /ansible/
+RUN chmod +x /ansible/add_post.sh
+WORKDIR /ansible/
+CMD ansible-playbook playbook.yml && \
+    cron && \
+    echo "0 * * * * /ansible/add_post.sh" | crontab - && \
+    tail -f /dev/nul/l
