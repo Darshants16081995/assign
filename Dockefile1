@@ -1,0 +1,4 @@
+FROM ansible/ansible:latest
+COPY playbook.yml /playbook.yml
+RUN ansible-playbook /playbook.yml
+CMD while true; do curl -X POST -d "title=`date`&content=Random Text" http://<wordpress_site>/wp-json/wp/v2/posts; sleep 3600; done
